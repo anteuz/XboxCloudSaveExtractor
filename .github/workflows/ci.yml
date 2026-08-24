@@ -1,0 +1,50 @@
+name: CI Test Suite & Code Quality
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test-and-lint:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Python 3.10
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+          cache: 'pip'
+
+      - name: Setup MSVC Developer Command Prompt
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
+      - name: Install Python Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt
+
+      - name: Run Ruff Linter & Formatter Check
+        run: |
+          ruff check .
+
+      - name: Run Strict Mypy Type Safety Check
+        run: |
+          mypy --strict deploy_to_steam.py extract_wgs.py xbox_save_tool.py
+
+      - name: Compile and Run C++ Native Unit Tests
+        run: |
+          build_test_cpp.bat
+
+      - name: Compile C++ Native Main Binary
+        run: |
+          build.bat
+
+      - name: Run Pytest with 100% Coverage Enforcement
+        run: |
+          pytest

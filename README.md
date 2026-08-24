@@ -132,7 +132,48 @@ If you prefer to run manual steps rather than the automated wizard, here is how 
 
 ---
 
+---
+
+## 🔒 Security, Privacy & Safety Guarantees
+
+We designed this tool with a **security-first, non-destructive** architecture. Here is why it is safe to use:
+
+| Feature / Concern | How It Works & Why It Is Safe |
+| :--- | :--- |
+| **No Password or Credential Sharing** | Uses official Microsoft OAuth **Device Code Flow** (`https://microsoft.com/link`). You authenticate entirely on Microsoft's official domain. Your password, 2FA credentials, and payment methods are never seen, transmitted, or stored by this tool. |
+| **Non-Destructive (Read-Only Cloud Sync)** | The tool uses `GetSyncOnDemandForUserAsync` in read-only mode to pull save containers from Microsoft's cloud down to your local storage. It **never modifies, overwrites, or deletes** saves stored in the Xbox Live Cloud. |
+| **Automatic Local Backups** | Every extraction automatically generates a timestamped `.zip` backup archive before any deployment, ensuring your local files are never accidentally overwritten. |
+| **100% Transparent Open Source** | Zero telemetry, zero external trackers, zero obfuscated code, and zero closed-source DLLs. The entire native bridge is less than 150 lines of standard C++/WinRT that links against standard Windows OS system libraries (`windowsapp.lib`). |
+| **Clean Ephemeral Registration** | The temporary developer manifest (`AppxManifest.xml`) exists only during save extraction and can be unregistered anytime with a single PowerShell command (`Get-AppxPackage *Identity* | Remove-AppxPackage`). |
+
+---
+
 ## 🏗️ Architecture & How It Works
+
+### The Technical Challenge
+Xbox Live cloud saves are protected by two layers:
+1. **Cloud REST Endpoints** (`titlestorage.xboxlive.com` / `gsls.xboxlive.com`) require a hardware-bound device certificate (`XSTS` with device token). Standard scripts without an Xbox hardware signature receive `403 Forbidden` / `400 Bad Request`.
+2. **Standard GDK Games** require an active game license or Game Pass subscription (`0x80070002` / `E_GS_NO_ACCESS`).
+
+### The Solution: OS-Level WinRT Bridge
+Windows 10 and 11 include a native operating system subsystem: `Windows.Gaming.XboxLive.Storage.GameSaveProvider`.
+When an application runs under a registered developer identity (`AppxManifest.xml`) matching the target game's **Package Family Name (PFN)**:
+1. Windows recognizes the process as the legitimate client application for that title.
+2. Windows' built-in Gaming Services handles all hardware token negotiations directly with Microsoft cloud servers.
+3. The WinRT API downloads all save containers (`.sfs`, `.sav`, `.dat`, `.bin`) directly onto your disk without requiring an active Game Pass subscription, Microsoft Store purchase, or game installation.
+
+```mermaid
+flowchart TD
+    A[User Starts Wizard: python xbox_save_tool.py wizard] --> B[Microsoft OAuth Device Flow: login.live.com]
+    B --> C[Fetch Played Title History: achievements.xboxlive.com]
+    C --> D[Lookup Store Catalog: displaycatalog.mp.microsoft.com]
+    D --> E[Generate Temporary AppxManifest.xml with Game's PFN]
+    E --> F[Register Developer App Bridge: Add-AppxPackage]
+    F --> G[Execute C++/WinRT Native Bridge: xbox_save_extractor.exe]
+    G --> H[Windows Gaming Services Authenticates & Syncs Containers]
+    H --> I[Extracted Save Files & Automatic .zip Backup]
+    I --> J[Deploy to Steam / GOG / Epic Save Directory]
+```
 
 ```
 ┌────────────────────────────────────────────────────────┐
