@@ -51,6 +51,13 @@ int main(int argc, char* argv[]) {
     std::string outDirStr = "ExtractedSaves";
     std::string logFilePath = "recovery_log.txt";
 
+    // Ensure working directory is the executable's directory
+    char exePathBuf[MAX_PATH];
+    if (GetModuleFileNameA(NULL, exePathBuf, MAX_PATH) > 0) {
+        std::filesystem::path p(exePathBuf);
+        std::filesystem::current_path(p.parent_path());
+    }
+
     for (int i = 1; i < argc; ++i) {
         std::string arg = argv[i];
         if ((arg == "--scid" || arg == "-s") && i + 1 < argc) {
@@ -62,19 +69,32 @@ int main(int argc, char* argv[]) {
         }
     }
 
-    // Fallback: check config.json
-    if (targetScid.empty() && std::filesystem::exists("config.json")) {
+    // Fallback: check config.json in executable directory
+    if (std::filesystem::exists("config.json")) {
         try {
             std::ifstream cfg("config.json");
             std::string line;
             while (std::getline(cfg, line)) {
-                auto pos = line.find("\"scid\"");
-                if (pos != std::string::npos) {
-                    auto colon = line.find(':', pos);
-                    auto firstQuote = line.find('"', colon);
-                    auto secondQuote = line.find('"', firstQuote + 1);
-                    if (firstQuote != std::string::npos && secondQuote != std::string::npos) {
-                        targetScid = line.substr(firstQuote + 1, secondQuote - firstQuote - 1);
+                if (targetScid.empty()) {
+                    auto pos = line.find("\"scid\"");
+                    if (pos != std::string::npos) {
+                        auto colon = line.find(':', pos);
+                        auto firstQuote = line.find('"', colon);
+                        auto secondQuote = line.find('"', firstQuote + 1);
+                        if (firstQuote != std::string::npos && secondQuote != std::string::npos) {
+                            targetScid = line.substr(firstQuote + 1, secondQuote - firstQuote - 1);
+                        }
+                    }
+                }
+                if (outDirStr == "ExtractedSaves") {
+                    auto pos = line.find("\"output\"");
+                    if (pos != std::string::npos) {
+                        auto colon = line.find(':', pos);
+                        auto firstQuote = line.find('"', colon);
+                        auto secondQuote = line.find('"', firstQuote + 1);
+                        if (firstQuote != std::string::npos && secondQuote != std::string::npos) {
+                            outDirStr = line.substr(firstQuote + 1, secondQuote - firstQuote - 1);
+                        }
                     }
                 }
             }
@@ -112,11 +132,18 @@ int main(int argc, char* argv[]) {
         Log("[+] Active Windows User obtained: " + Sanitize(currentUser.NonRoamableId().c_str()));
 
         hstring scidHString = ToWString(targetScid).c_str();
-        Log("[*] Connecting to Xbox Cloud Save Provider (GetForUserAsync)...");
+        Log("[*] Connecting to Xbox Cloud Save Provider (GetSyncOnDemandForUserAsync)...");
 
-        auto result = GameSaveProvider::GetForUserAsync(currentUser, scidHString).get();
+        auto result = GameSaveProvider::GetSyncOnDemandForUserAsync(currentUser, scidHString).get();
         int status = static_cast<int>(result.Status());
         Log("[+] Provider Status Code: " + std::to_string(status));
+
+        if (result.Status() != GameSaveErrorStatus::Ok) {
+            Log("[*] Fallback: Trying GetForUserAsync...");
+            result = GameSaveProvider::GetForUserAsync(currentUser, scidHString).get();
+            status = static_cast<int>(result.Status());
+            Log("[+] Fallback Provider Status Code: " + std::to_string(status));
+        }
 
         if (result.Status() != GameSaveErrorStatus::Ok) {
             Log("[-] Failed connecting to GameSaveProvider (Status: " + std::to_string(status) + ").");

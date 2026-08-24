@@ -34,9 +34,9 @@ def log(msg, color=None):
         # Enable ANSI colors in Windows terminal
         os.system("")
     if color and color in colors:
-        print(f"{colors[color]}{msg}{colors['end']}")
+        print(f"{colors[color]}{msg}{colors['end']}", flush=True)
     else:
-        print(msg)
+        print(msg, flush=True)
 
 def oauth_device_login():
     """Performs Microsoft OAuth Device Code Flow to acquire Xbox Live XSTS token."""

@@ -22,9 +22,12 @@ env/
 
 # Extracted saves & backup archives
 ExtractedSaves*/
+*_Saves_Ready*/
 *.zip
 history.json
 config.json
+AppxManifest.xml
+main.exe
 
 # VS / IDE cache
 .vs/
