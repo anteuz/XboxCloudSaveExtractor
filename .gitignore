@@ -1,0 +1,32 @@
+# Build outputs & binaries
+*.obj
+*.pdb
+*.ilk
+*.exp
+*.lib
+*.log
+recovery_log.txt
+
+# GDK / NuGet temp files
+*.nupkg
+gdk/
+GdkTemp/
+obj/
+bin/
+
+# Python cache & virtual environments
+__pycache__/
+*.pyc
+.venv/
+env/
+
+# Extracted saves & backup archives
+ExtractedSaves*/
+*.zip
+history.json
+config.json
+
+# VS / IDE cache
+.vs/
+.vscode/
+.idea/
