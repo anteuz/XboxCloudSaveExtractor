@@ -5,7 +5,7 @@
 [![API](https://img.shields.io/badge/API-Windows%20Runtime%20(WinRT)-orange.svg)](https://learn.microsoft.com/en-us/uwp/api/)
 [![License](https://img.shields.io/badge/license-MIT-purple.svg)](LICENSE)
 
-> **Extract and recover Xbox Game Pass & Xbox Live cloud saves for ANY PC or Console title directly from Microsoft's cloud servers — without requiring an active Game Pass subscription, game license, or full game installation.**
+> **Extract and recover Xbox Game Pass & Xbox Live cloud saves for ANY PC or Console title you have previously owned or played on your Microsoft account — directly from Microsoft's cloud servers, without requiring an active Game Pass subscription, active game license, or full game installation.**
 
 ---
 
@@ -20,8 +20,8 @@ When your Xbox Game Pass subscription expires or a game is removed from the cata
 
 ## ✨ Features
 
-* 🚀 **Universal Compatibility**: Works for **ANY** Xbox Live / Game Pass game (PC, Xbox One, Xbox Series X/S).
-* 🔓 **No Active Subscription Required**: Downloads cloud saves even if Game Pass has expired or you do not own the game on the Microsoft Store.
+* 🚀 **Universal Compatibility**: Works for **ANY** Xbox Live / Game Pass game (PC, Xbox One, Xbox Series X/S) previously played under your Microsoft account.
+* 🔓 **No Active Subscription Required**: Downloads cloud saves for any game you previously owned or played, even after Game Pass has expired or you do not own the game on the Microsoft Store anymore.
 * 🔎 **Auto-Discovery via OAuth**: Authenticates with your Microsoft account via browser Device Code flow and lists every game you have ever played, along with exact Title IDs, SCIDs, and timestamps.
 * 📦 **Store Catalog Resolution**: Queries Microsoft's Display Catalog API to automatically resolve Package Family Names (PFN), Application IDs, and Primary SCIDs from any Microsoft Store URL or Product ID.
 * 💾 **Direct Steam/GOG/Epic Transfer**: Extracts clean, raw `.sav`, `.dat`, and binary containers ready to be loaded by Steam, GOG, or Epic Games versions.

@@ -1,14 +1,13 @@
 ---
 name: xbox-cloud-save-extractor
 description: >-
-  Extract and recover Xbox Game Pass / Xbox Live cloud saves for ANY PC or Console game directly
-  from Microsoft's cloud servers without requiring an active Game Pass subscription or game installation.
+  Extract and recover Xbox Game Pass / Xbox Live cloud saves for ANY PC or Console game you have previously owned or played under your Microsoft account directly from Microsoft's cloud servers without requiring an active Game Pass subscription or game installation.
   Use when the user wants to recover saves, transfer Xbox saves to Steam/GOG/Epic, or resolve Xbox cloud sync errors.
 ---
 
 # Xbox Cloud Save Recovery & Migration Skill
 
-This skill provides an end-to-end guide and automated toolkit for recovering and downloading Xbox Live / Game Pass cloud saves for **any game**, even after Game Pass has expired or the game has been uninstalled.
+This skill provides an end-to-end guide and automated toolkit for recovering and downloading Xbox Live / Game Pass cloud saves for **any game you have previously owned or played on your account**, even after Game Pass has expired or the game has been uninstalled.
 
 ---
 
