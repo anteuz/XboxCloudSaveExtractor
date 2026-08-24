@@ -30,9 +30,9 @@ def parse_containers_index(wgs_dir):
         for entry in os.listdir(wgs_dir):
             entry_path = os.path.join(wgs_dir, entry)
             if os.path.isdir(entry_path) and len(entry) == 32: # 32-char hex directory name
-                container_index_path = os.path.join(entry_path, "container.")
-                if os.path.exists(container_index_path):
-                    containers.append((entry, entry_path, container_index_path))
+                container_files = [f for f in os.listdir(entry_path) if f.startswith("container.")]
+                if container_files:
+                    containers.append((entry, entry_path, os.path.join(entry_path, container_files[0])))
 
         return containers
     except Exception as e:
@@ -90,6 +90,7 @@ def extract_wgs_folder(wgs_dir, output_dir):
                     print(f"  [-] Failed processing {container_file}: {e}")
 
     print(f"\n[+] Extracted {extracted_count} save file(s) ({total_bytes} bytes) to: {output_dir}")
+    return extracted_count
 
 def find_all_wgs_packages():
     """Finds all installed/stored packages containing local WGS save data."""

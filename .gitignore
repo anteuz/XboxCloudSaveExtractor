@@ -33,3 +33,10 @@ main.exe
 .vs/
 .vscode/
 .idea/
+
+# Testing & Coverage
+.coverage
+htmlcov/
+.pytest_cache/
+test_cpp.exe
+test_config.json

@@ -29,6 +29,7 @@ def deploy_saves(src_dir, target_dir, backup_zip=None):
     else:
         backup_zip = Path(backup_zip)
 
+    backup_zip.parent.mkdir(parents=True, exist_ok=True)
     print(f"[*] Creating ZIP backup at: {backup_zip}...")
     with zipfile.ZipFile(backup_zip, "w", zipfile.ZIP_DEFLATED) as zf:
         for root, dirs, files in os.walk(src_path):
