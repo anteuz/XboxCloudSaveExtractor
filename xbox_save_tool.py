@@ -285,7 +285,11 @@ def generate_manifest_and_register(identity_name, pfn, app_id, publisher=None, t
         log("[*** SUCCESS ***] Developer package registered successfully in Windows!", "green")
         return True
     else:
-        log(f"[-] Registration output: {res.stderr.strip() or res.stdout.strip()}", "yellow")
+        err = (res.stderr.strip() or res.stdout.strip())
+        log(f"[-] Registration output: {err}", "yellow")
+        if "0x80073CFF" in err or "developer" in err.lower() or "sideload" in err.lower():
+            log("[!] Windows Developer Mode is required to register app packages.", "red")
+            log("    Enable Developer Mode: Windows Settings -> System -> For developers -> Developer Mode: ON", "yellow")
         return True
 
 def extract_cloud_saves(scid, output_dir="ExtractedSaves", pfn=None, app_id="App"):

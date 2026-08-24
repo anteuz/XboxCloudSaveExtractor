@@ -264,6 +264,22 @@ def test_generate_manifest_default_target_dir(monkeypatch):
     )
     assert res is True
 
+def test_generate_manifest_dev_mode_error(monkeypatch, capsys):
+    mock_run = MagicMock()
+    mock_run.return_value.returncode = 1
+    mock_run.return_value.stderr = "Deployment failed with HRESULT: 0x80073CFF Developer Mode is required."
+    mock_run.return_value.stdout = ""
+    monkeypatch.setattr(xbox_save_tool.subprocess, "run", mock_run)
+
+    res = xbox_save_tool.generate_manifest_and_register(
+        identity_name="DevModeTest",
+        pfn="DevModeTest_hash",
+        app_id="App"
+    )
+    assert res is True
+    captured = capsys.readouterr().out
+    assert "Windows Developer Mode is required" in captured
+
 # ----------------- extract_cloud_saves() tests -----------------
 
 def test_extract_cloud_saves_packaged(tmp_path, monkeypatch):

@@ -214,8 +214,10 @@ Common PC save paths for extracted Unreal Engine & standard titles:
 
 | Issue / Error Code | Cause | Fix |
 | :--- | :--- | :--- |
+| **`0x80073CFF` / Developer Mode error** | Loose AppX manifest registration blocked because Windows Developer Mode is OFF. | Enable Developer Mode: Windows Settings -> System -> For developers -> Developer Mode: ON (or set registry `AllowDevelopmentWithoutDevLicense = 1`). |
 | **`0x89245115` / `E_GAMEUSER_NO_DEFAULT_USER`** | Unpackaged Win32 console app calling GDK without parent HWND window. | Use the C++/WinRT `GameSaveProvider` bridge or provide a Win32 message loop window. |
 | **`0x80070002` / `0x8924520B`** | GDK checking for local loose license signatures. | WinRT bypasses GDK licensing entirely when registered via `AppxManifest.xml`. |
 | **`400 Bad Request` on XSTS** | Querying invalid RelyingParty without Device Token. | Use `http://xboxlive.com` for title queries and let WinRT handle storage RPC. |
 | **`404 Not Found` on titlestorage** | Game uses Connected Storage (`XGameSave`), not Title Storage. | Connected storage containers are managed via `GameSaveProvider`. |
 | **Camera spinning / Gamepad stuck in UI** | Flight sticks (HOTAS), rudder pedals, or virtual joysticks outputting resting axis signals. | Unplug HOTAS/pedals or add `bEnableDirectInput=False` & `bEnableRawInput=False` to `Engine.ini`. |
+

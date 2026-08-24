@@ -29,6 +29,26 @@ When your Xbox Game Pass subscription expires or a game is removed from the cata
 
 ---
 
+## 📋 Prerequisites & Windows Developer Mode
+
+### 1. Windows Developer Mode (Required)
+To register the temporary loose developer package bridge (`Add-AppxPackage -Register`) without requiring a paid Microsoft code-signing certificate, **Windows Developer Mode must be enabled**:
+
+* **Windows 11**: Open **Settings** $\rightarrow$ **System** $\rightarrow$ **For developers** $\rightarrow$ Toggle **Developer Mode** to **ON**.
+* **Windows 10**: Open **Settings** $\rightarrow$ **Update & Security** $\rightarrow$ **For developers** $\rightarrow$ Select **Developer Mode**.
+* *Alternative (PowerShell as Administrator)*:
+  ```powershell
+  Set-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\AppModelUnlock' -Name 'AllowDevelopmentWithoutDevLicense' -Value 1
+  ```
+
+> [!NOTE]
+> Developer Mode allows Windows to register unpackaged application manifests in development layout. It is safe, built directly into Windows, and can be turned off whenever you finish recovering your saves.
+
+### 2. Python 3.10+
+Ensure Python 3.10 or higher is installed and on your system `PATH`.
+
+---
+
 ## 🚀 Quick Start (Interactive Wizard)
 
 The fastest way to recover your saves is using the interactive guided wizard:
