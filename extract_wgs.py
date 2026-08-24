@@ -1,53 +1,49 @@
+#!/usr/bin/env python3
+"""
+Universal Windows Game Save (WGS) Local Extractor
+Extracts and parses local Windows Game Save packages from %LOCALAPPDATA%\\Packages.
+"""
+
+import argparse
 import os
-import sys
-import struct
-import glob
 from pathlib import Path
 
-def parse_containers_index(wgs_dir):
+
+def parse_containers_index(wgs_dir: str | Path) -> list[tuple[str, str, str]]:
     """
     Parses Windows Game Save (wgs) containers.index file to map 
     container GUID directories and blob files back to original save game filenames.
     """
-    index_file = os.path.join(wgs_dir, "containers.index")
+    wgs_str = str(wgs_dir)
+    index_file = os.path.join(wgs_str, "containers.index")
     if not os.path.exists(index_file):
         return []
 
-    results = []
-    with open(index_file, "rb") as f:
-        data = f.read()
-
-    # containers.index structure:
-    # Header: int32 version, int32 container_count
-    # Each container entry contains container display name, name, GUID directory, etc.
     try:
-        # Read utf-16le strings from index file
-        idx = 0
-        file_len = len(data)
-        
-        # Search for UTF-16 string pattern or GUID folders
-        containers = []
-        for entry in os.listdir(wgs_dir):
-            entry_path = os.path.join(wgs_dir, entry)
+        containers: list[tuple[str, str, str]] = []
+        for entry in os.listdir(wgs_str):
+            entry_path = os.path.join(wgs_str, entry)
             if os.path.isdir(entry_path) and len(entry) == 32: # 32-char hex directory name
                 container_files = [f for f in os.listdir(entry_path) if f.startswith("container.")]
                 if container_files:
                     containers.append((entry, entry_path, os.path.join(entry_path, container_files[0])))
 
         return containers
-    except Exception as e:
+    except (OSError, UnicodeDecodeError, ValueError) as e:
         print(f"Error reading index: {e}")
         return []
 
-def extract_wgs_folder(wgs_dir, output_dir):
-    print(f"[*] Scanning WGS directory: {wgs_dir}")
-    os.makedirs(output_dir, exist_ok=True)
+def extract_wgs_folder(wgs_dir: str | Path, output_dir: str | Path) -> int:
+    wgs_str = str(wgs_dir)
+    out_str = str(output_dir)
+    print(f"[*] Scanning WGS directory: {wgs_str}")
+    os.makedirs(out_str, exist_ok=True)
     
     extracted_count = 0
     total_bytes = 0
 
     # Look for container directories inside wgs_dir
-    for root, dirs, files in os.walk(wgs_dir):
+    for root, _, files in os.walk(wgs_str):
         for file in files:
             if file.startswith("container."):
                 container_file = os.path.join(root, file)
@@ -55,11 +51,6 @@ def extract_wgs_folder(wgs_dir, output_dir):
                 
                 # Parse container header to get file names
                 try:
-                    with open(container_file, "rb") as f:
-                        content = f.read()
-                    
-                    # Look for blob names in container file
-                    # Format: UTF-16-LE strings for blob names and GUIDs
                     blob_files = [f for f in os.listdir(container_dir) if f != file and not f.endswith(".tmp")]
                     
                     for blob_file in blob_files:
@@ -77,7 +68,7 @@ def extract_wgs_folder(wgs_dir, output_dir):
                         
                         rel_dir = os.path.basename(container_dir)
                         out_name = f"{rel_dir}_{blob_file}{ext}"
-                        out_path = os.path.join(output_dir, out_name)
+                        out_path = os.path.join(out_str, out_name)
                         
                         with open(src_path, "rb") as sf, open(out_path, "wb") as df:
                             df.write(sf.read())
@@ -86,17 +77,17 @@ def extract_wgs_folder(wgs_dir, output_dir):
                         extracted_count += 1
                         total_bytes += file_size
 
-                except Exception as e:
+                except (OSError, ValueError) as e:
                     print(f"  [-] Failed processing {container_file}: {e}")
 
-    print(f"\n[+] Extracted {extracted_count} save file(s) ({total_bytes} bytes) to: {output_dir}")
+    print(f"\n[+] Extracted {extracted_count} save file(s) ({total_bytes} bytes) to: {out_str}")
     return extracted_count
 
-def find_all_wgs_packages():
+def find_all_wgs_packages() -> list[dict[str, str | int]]:
     """Finds all installed/stored packages containing local WGS save data."""
     local_appdata = os.environ.get("LOCALAPPDATA", "")
     packages_dir = os.path.join(local_appdata, "Packages")
-    matches = []
+    matches: list[dict[str, str | int]] = []
     
     if os.path.exists(packages_dir):
         for pkg in os.listdir(packages_dir):
@@ -112,8 +103,7 @@ def find_all_wgs_packages():
                     
     return matches
 
-def main():
-    import argparse
+def main() -> None:
     parser = argparse.ArgumentParser(description="Universal Windows Game Save (WGS) Local Extractor")
     parser.add_argument("--package", "-p", help="Filter by package name keyword")
     parser.add_argument("--wgs-dir", "-w", help="Direct path to SystemAppData/wgs directory")
@@ -140,13 +130,13 @@ def main():
         return
 
     if args.package:
-        filtered = [p for p in all_pkgs if args.package.lower() in p["packageName"].lower()]
+        filtered = [p for p in all_pkgs if args.package.lower() in str(p["packageName"]).lower()]
         if not filtered:
             print(f"[-] No local packages found matching '{args.package}'.")
             return
         for pkg in filtered:
-            out = os.path.join(args.output, pkg["packageName"])
-            extract_wgs_folder(pkg["wgsPath"], out)
+            out = os.path.join(args.output, str(pkg["packageName"]))
+            extract_wgs_folder(str(pkg["wgsPath"]), out)
         return
 
     if not all_pkgs:
@@ -163,14 +153,15 @@ def main():
     choice = input("\nEnter package # to extract (or 'all'): ").strip()
     if choice.lower() == "all":
         for pkg in all_pkgs:
-            out = os.path.join(args.output, pkg["packageName"])
-            extract_wgs_folder(pkg["wgsPath"], out)
+            out = os.path.join(args.output, str(pkg["packageName"]))
+            extract_wgs_folder(str(pkg["wgsPath"]), out)
     elif choice.isdigit() and 1 <= int(choice) <= len(all_pkgs):
         selected = all_pkgs[int(choice) - 1]
-        out = os.path.join(args.output, selected["packageName"])
-        extract_wgs_folder(selected["wgsPath"], out)
+        out = os.path.join(args.output, str(selected["packageName"]))
+        extract_wgs_folder(str(selected["wgsPath"]), out)
     else:
         print("[-] Invalid selection.")
 
 if __name__ == "__main__":
     main()
+

@@ -33,17 +33,27 @@ static void Log(const std::string& msg) {
 }
 
 static std::string Sanitize(const std::wstring& ws) {
-    std::string s(ws.begin(), ws.end());
-    for (char& c : s) {
-        if (c == '\\' || c == '/' || c == ':' || c == '*' || c == '?' || c == '"' || c == '<' || c == '>' || c == '|') {
-            c = '_';
+    std::string s;
+    s.reserve(ws.length());
+    for (wchar_t wc : ws) {
+        if (wc == L'\\' || wc == L'/' || wc == L':' || wc == L'*' || wc == L'?' || wc == L'"' || wc == L'<' || wc == L'>' || wc == L'|') {
+            s.push_back('_');
+        } else if (wc < 128) {
+            s.push_back(static_cast<char>(wc));
+        } else {
+            s.push_back('_');
         }
     }
     return s;
 }
 
 static std::wstring ToWString(const std::string& str) {
-    return std::wstring(str.begin(), str.end());
+    std::wstring ws;
+    ws.reserve(str.length());
+    for (char c : str) {
+        ws.push_back(static_cast<wchar_t>(static_cast<unsigned char>(c)));
+    }
+    return ws;
 }
 
 int main(int argc, char* argv[]) {

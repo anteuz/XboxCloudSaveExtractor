@@ -1,13 +1,10 @@
+import json
 import os
 import sys
-import io
-import json
 import time
-import zipfile
-from pathlib import Path
-import pytest
-from unittest.mock import patch, MagicMock
 import urllib.error
+from pathlib import Path
+from unittest.mock import MagicMock
 
 import xbox_save_tool
 
@@ -153,14 +150,14 @@ def test_discover_games_pagination(monkeypatch):
 
 def test_discover_games_exception(monkeypatch, capsys):
     def mock_urlopen(req):
-        raise RuntimeError("Network error")
+        raise urllib.error.URLError("Network error")
 
     monkeypatch.setattr(xbox_save_tool.urllib.request, "urlopen", mock_urlopen)
     auth = {"uhs": "uhs", "token": "token", "xid": "123"}
     titles = xbox_save_tool.discover_games(auth)
     assert titles == []
     captured = capsys.readouterr().out
-    assert "Error querying page: Network error" in captured
+    assert "Error querying page: <urlopen error Network error>" in captured
 
 # ----------------- lookup_store_product() tests -----------------
 
@@ -222,7 +219,7 @@ def test_lookup_store_product_empty_products(monkeypatch, capsys):
 
 def test_lookup_store_product_network_error(monkeypatch, capsys):
     def mock_urlopen(req):
-        raise IOError("HTTP 404")
+        raise OSError("HTTP 404")
     monkeypatch.setattr(xbox_save_tool.urllib.request, "urlopen", mock_urlopen)
     res = xbox_save_tool.lookup_store_product("INVALID")
     assert res is None
@@ -286,7 +283,7 @@ def test_extract_cloud_saves_packaged(tmp_path, monkeypatch):
     out_dir = tmp_path / "Extracted"
     log_file = xbox_save_tool.WORKSPACE_DIR / "recovery_log.txt"
     
-    def mock_run(cmd, shell=True, capture_output=False, text=False):
+    def mock_run(cmd, *args, **kwargs):
         with open(log_file, "w", encoding="utf-8") as f:
             f.write("Connecting...\nContainer 1/1\nEXTRACTION COMPLETE\n")
         res = MagicMock()

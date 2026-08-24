@@ -1,7 +1,5 @@
 import sys
-import os
 from pathlib import Path
-import pytest
 
 # Add workspace directory to sys.path
 workspace_dir = Path(__file__).resolve().parent.parent

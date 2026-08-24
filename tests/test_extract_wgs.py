@@ -1,10 +1,8 @@
 import os
 import sys
-from pathlib import Path
-import pytest
-from unittest.mock import patch, MagicMock
 
 import extract_wgs
+
 
 def test_parse_containers_index_nonexistent(tmp_path):
     nonexistent = tmp_path / 'no_wgs'
@@ -33,7 +31,7 @@ def test_parse_containers_index_exception(tmp_path, monkeypatch, capsys):
     (wgs_dir / 'containers.index').write_bytes(b'data')
 
     def mock_listdir(p):
-        raise RuntimeError('Disk error')
+        raise OSError('Disk error')
     monkeypatch.setattr(os, 'listdir', mock_listdir)
 
     results = extract_wgs.parse_containers_index(str(wgs_dir))
@@ -72,11 +70,12 @@ def test_extract_wgs_folder_exception(tmp_path, monkeypatch, capsys):
     c_dir = wgs_dir / 'c1'
     c_dir.mkdir()
     (c_dir / 'container.1').write_bytes(b'info')
+    (c_dir / 'blob_err').write_bytes(b'data')
 
     orig_open = open
     def mock_open(file, *args, **kwargs):
-        if 'container.1' in str(file):
-            raise IOError('Failed read')
+        if 'blob_err' in str(file):
+            raise OSError('Failed read')
         return orig_open(file, *args, **kwargs)
 
     monkeypatch.setattr('builtins.open', mock_open)
@@ -150,7 +149,7 @@ def test_main_package_filter_no_match(monkeypatch, capsys):
     assert 'No local packages found matching' in captured
 
 def test_main_no_packages_found(monkeypatch, capsys):
-    monkeypatch.setattr(extract_wgs, 'find_all_wgs_packages', lambda: [])
+    monkeypatch.setattr(extract_wgs, 'find_all_wgs_packages', list)
     monkeypatch.setattr(sys, 'argv', ['extract_wgs.py'])
 
     extract_wgs.main()

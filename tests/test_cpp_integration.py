@@ -1,6 +1,7 @@
-import subprocess
 import shutil
+import subprocess
 from pathlib import Path
+
 import pytest
 
 WORKSPACE_DIR = Path(__file__).resolve().parent.parent
@@ -16,7 +17,7 @@ def test_cpp_binary_missing_scid_error(tmp_path):
     
     # Run with timeout to prevent Sleep(4000) from hanging test excessively
     try:
-        res = subprocess.run(cmd, cwd=str(tmp_path), capture_output=True, text=True, timeout=10)
+        res = subprocess.run(cmd, cwd=str(tmp_path), capture_output=True, text=True, timeout=10, check=False)
         assert res.returncode == 1
     except subprocess.TimeoutExpired:
         pass
@@ -35,7 +36,7 @@ def test_cpp_binary_with_scid_unpackaged_fails_gracefully(tmp_path):
     cmd = [str(isolated_exe), "--scid", "00000000-0000-0000-0000-000000000000", "--out", str(out_dir), "--log", str(log_file)]
 
     try:
-        res = subprocess.run(cmd, cwd=str(tmp_path), capture_output=True, text=True, timeout=10)
+        res = subprocess.run(cmd, cwd=str(tmp_path), capture_output=True, text=True, timeout=10, check=False)
         assert res.returncode != 0
     except subprocess.TimeoutExpired:
         pass

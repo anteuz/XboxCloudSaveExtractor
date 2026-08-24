@@ -4,31 +4,32 @@ Universal Xbox Cloud Save Recovery Tool
 Extracts cloud saves for ANY Xbox / Game Pass title using native Windows WinRT bridges and OAuth device authentication.
 """
 
-import sys
+import argparse
+import json
 import os
 import re
-import json
-import time
 import shutil
-import zipfile
 import subprocess
-import argparse
-from pathlib import Path
-import urllib.request
-import urllib.parse
+import sys
+import time
 import urllib.error
+import urllib.parse
+import urllib.request
+import zipfile
+from pathlib import Path
+from typing import Any
 
 CLIENT_ID = "000000004C12AE6F"
 WORKSPACE_DIR = Path(__file__).resolve().parent
 
-def log(msg, color=None):
+def log(msg: str, color: str | None = None) -> None:
     colors = {
         "cyan": "\033[96m",
         "green": "\033[92m",
         "yellow": "\033[93m",
         "red": "\033[91m",
         "bold": "\033[1m",
-        "end": "\033[0m"
+        "end": "\033[0m",
     }
     if sys.platform == "win32":
         # Enable ANSI colors in Windows terminal
@@ -38,19 +39,19 @@ def log(msg, color=None):
     else:
         print(msg, flush=True)
 
-def oauth_device_login():
+def oauth_device_login() -> dict[str, str] | None:
     """Performs Microsoft OAuth Device Code Flow to acquire Xbox Live XSTS token."""
     log("[*] Requesting Microsoft Device Code...", "yellow")
     url = "https://login.live.com/oauth20_connect.srf"
     data = urllib.parse.urlencode({
         "client_id": CLIENT_ID,
         "response_type": "device_code",
-        "scope": "service::user.auth.xboxlive.com::MBI_SSL"
+        "scope": "service::user.auth.xboxlive.com::MBI_SSL",
     }).encode("utf-8")
     
     req = urllib.request.Request(url, data=data, headers={"Content-Type": "application/x-www-form-urlencoded"})
     with urllib.request.urlopen(req) as resp:
-        code_data = json.loads(resp.read().decode("utf-8"))
+        code_data: dict[str, Any] = json.loads(resp.read().decode("utf-8"))
 
     log("\n=======================================================", "cyan")
     log(f" 1. Open:  {code_data.get('verification_uri')}", "bold")
@@ -62,15 +63,15 @@ def oauth_device_login():
     token_data = urllib.parse.urlencode({
         "client_id": CLIENT_ID,
         "grant_type": "urn:ietf:params:oauth:grant-type:device_code",
-        "device_code": code_data["device_code"]
+        "device_code": code_data["device_code"],
     }).encode("utf-8")
 
-    access_token = None
+    access_token: str | None = None
     for _ in range(60):
         try:
             req = urllib.request.Request(token_url, data=token_data, headers={"Content-Type": "application/x-www-form-urlencoded"})
             with urllib.request.urlopen(req) as resp:
-                res = json.loads(resp.read().decode("utf-8"))
+                res: dict[str, Any] = json.loads(resp.read().decode("utf-8"))
                 if "access_token" in res:
                     access_token = res["access_token"]
                     break
@@ -83,34 +84,34 @@ def oauth_device_login():
 
     # User Auth
     user_url = "https://user.auth.xboxlive.com/user/authenticate"
-    body = {
+    body: dict[str, Any] = {
         "RelyingParty": "http://auth.xboxlive.com",
         "TokenType": "JWT",
         "Properties": {
             "AuthMethod": "RPS",
             "SiteName": "user.auth.xboxlive.com",
-            "RpsTicket": f"t={access_token}"
-        }
+            "RpsTicket": f"t={access_token}",
+        },
     }
     req = urllib.request.Request(user_url, data=json.dumps(body).encode("utf-8"), headers={"Content-Type": "application/json", "Accept": "application/json"})
     with urllib.request.urlopen(req) as resp:
-        user_res = json.loads(resp.read().decode("utf-8"))
+        user_res: dict[str, Any] = json.loads(resp.read().decode("utf-8"))
 
     user_token = user_res["Token"]
 
     # XSTS Auth for xboxlive.com
     xsts_url = "https://xsts.auth.xboxlive.com/xsts/authorize"
-    body = {
+    xsts_body: dict[str, Any] = {
         "RelyingParty": "http://xboxlive.com",
         "TokenType": "JWT",
         "Properties": {
             "UserTokens": [user_token],
-            "SandboxId": "RETAIL"
-        }
+            "SandboxId": "RETAIL",
+        },
     }
-    req = urllib.request.Request(xsts_url, data=json.dumps(body).encode("utf-8"), headers={"Content-Type": "application/json", "Accept": "application/json"})
+    req = urllib.request.Request(xsts_url, data=json.dumps(xsts_body).encode("utf-8"), headers={"Content-Type": "application/json", "Accept": "application/json"})
     with urllib.request.urlopen(req) as resp:
-        xsts_res = json.loads(resp.read().decode("utf-8"))
+        xsts_res: dict[str, Any] = json.loads(resp.read().decode("utf-8"))
 
     xsts_token = xsts_res["Token"]
     uhs = xsts_res["DisplayClaims"]["xui"][0]["uhs"]
@@ -122,20 +123,20 @@ def oauth_device_login():
         "gamertag": gamertag,
         "xid": xid,
         "uhs": uhs,
-        "token": xsts_token
+        "token": xsts_token,
     }
 
-def discover_games(auth_info):
+def discover_games(auth_info: dict[str, str]) -> list[dict[str, Any]]:
     """Fetches all played games and SCIDs for the authenticated account."""
     headers = {
         "Authorization": f"XBL3.0 x={auth_info['uhs']};{auth_info['token']}",
         "x-xbl-contract-version": "2",
-        "Accept": "application/json"
+        "Accept": "application/json",
     }
 
     log("\n[*] Scanning Xbox title history (fetching all pages)...", "yellow")
-    all_titles = []
-    continuation_token = None
+    all_titles: list[dict[str, Any]] = []
+    continuation_token: str | None = None
 
     while True:
         params = {"maxItems": "100"}
@@ -146,23 +147,23 @@ def discover_games(auth_info):
         req = urllib.request.Request(url, headers=headers)
         try:
             with urllib.request.urlopen(req) as resp:
-                data = json.loads(resp.read().decode("utf-8"))
-                titles = data.get("titles", [])
+                data: dict[str, Any] = json.loads(resp.read().decode("utf-8"))
+                titles: list[dict[str, Any]] = data.get("titles", [])
                 all_titles.extend(titles)
                 continuation_token = data.get("pagingInfo", {}).get("continuationToken")
                 if not continuation_token or not titles:
                     break
-        except Exception as e:
+        except (urllib.error.URLError, json.JSONDecodeError, OSError) as e:
             log(f"[-] Error querying page: {e}", "red")
             break
 
     log(f"[+] Found {len(all_titles)} total played game(s) in account library.\n", "green")
     return all_titles
 
-def lookup_store_product(product_id_or_url):
+def lookup_store_product(product_id_or_url: str) -> dict[str, Any] | None:
     """Queries Microsoft Display Catalog API for package family name, app ID, and SCID."""
     # Extract 12-char product ID if full URL passed
-    m = re.search(r'([A-Za-z0-9]{12})', product_id_or_url)
+    m = re.search(r"([A-Za-z0-9]{12})", product_id_or_url)
     product_id = m.group(1).upper() if m else product_id_or_url.strip().upper()
 
     log(f"[*] Looking up Microsoft Store Catalog for Product ID: {product_id}...", "yellow")
@@ -171,12 +172,12 @@ def lookup_store_product(product_id_or_url):
 
     try:
         with urllib.request.urlopen(req) as resp:
-            data = json.loads(resp.read().decode("utf-8"))
-    except Exception as e:
+            data: dict[str, Any] = json.loads(resp.read().decode("utf-8"))
+    except (urllib.error.URLError, json.JSONDecodeError, OSError) as e:
         log(f"[-] Store Catalog lookup failed: {e}", "red")
         return None
 
-    products = data.get("Products", [])
+    products: list[dict[str, Any]] = data.get("Products", [])
     if not products:
         log("[-] No product found in Store Catalog.", "red")
         return None
@@ -200,14 +201,14 @@ def lookup_store_product(product_id_or_url):
                     identity_name = pack.get("PackageIdentityName", "")
                     break
 
-    info = {
+    info: dict[str, Any] = {
         "productId": product_id,
         "titleName": title_name,
         "packageFamilyName": pfn,
         "identityName": identity_name if identity_name else (pfn.split("_")[0] if "_" in pfn else pfn),
         "applicationId": app_id if app_id else "App",
         "scid": scid if scid else (f"00000000-0000-0000-0000-0000{hex(int(legacy_id))[2:].zfill(8)}" if legacy_id else ""),
-        "xboxTitleId": legacy_id
+        "xboxTitleId": legacy_id,
     }
 
     log(f"[+] Found Store Details for: {title_name}", "green")
@@ -217,18 +218,24 @@ def lookup_store_product(product_id_or_url):
     log(f"  * Primary SCID:   {info['scid']}")
     return info
 
-def generate_manifest_and_register(identity_name, pfn, app_id, publisher=None, target_dir=None):
+def generate_manifest_and_register(
+    identity_name: str,
+    pfn: str,
+    app_id: str,
+    publisher: str | None = None,
+    target_dir: str | Path | None = None,
+) -> bool:
     """Generates a minimal AppxManifest.xml matching the game's identity and registers it."""
     if not target_dir:
         target_dir = WORKSPACE_DIR
 
-    target_dir = Path(target_dir)
-    manifest_path = target_dir / "AppxManifest.xml"
+    target_path = Path(target_dir)
+    manifest_path = target_path / "AppxManifest.xml"
 
     if not publisher:
         publisher = "CN=Developer, O=Developer, C=US"
     
-    xml_content = f'''<?xml version="1.0" encoding="utf-8"?>
+    xml_content = f"""<?xml version="1.0" encoding="utf-8"?>
 <Package xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10"
          xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10"
          xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities">
@@ -261,13 +268,13 @@ def generate_manifest_and_register(identity_name, pfn, app_id, publisher=None, t
                           Square44x44Logo="Assets\\SmallLogo.png" />
     </Application>
   </Applications>
-</Package>'''
+</Package>"""
 
     with open(manifest_path, "w", encoding="utf-8") as f:
         f.write(xml_content)
 
     # Ensure Assets directory exists
-    assets_dir = target_dir / "Assets"
+    assets_dir = target_path / "Assets"
     assets_dir.mkdir(exist_ok=True)
     for name in ["Logo.png", "SmallLogo.png", "StoreLogo.png", "SplashScreen.png"]:
         p = assets_dir / name
@@ -280,7 +287,7 @@ def generate_manifest_and_register(identity_name, pfn, app_id, publisher=None, t
     # Unregister any previous conflicting package and register
     log("[*] Registering developer package in Windows...", "yellow")
     cmd = f'powershell -NoProfile -Command "Get-AppxPackage *{identity_name}* -ErrorAction SilentlyContinue | Remove-AppxPackage -ErrorAction SilentlyContinue; Add-AppxPackage -Register \'{manifest_path}\'"'
-    res = subprocess.run(cmd, shell=True, capture_output=True, text=True)
+    res = subprocess.run(cmd, shell=True, capture_output=True, text=True, check=False)
     if res.returncode == 0:
         log("[*** SUCCESS ***] Developer package registered successfully in Windows!", "green")
         return True
@@ -292,7 +299,12 @@ def generate_manifest_and_register(identity_name, pfn, app_id, publisher=None, t
             log("    Enable Developer Mode: Windows Settings -> System -> For developers -> Developer Mode: ON", "yellow")
         return True
 
-def extract_cloud_saves(scid, output_dir="ExtractedSaves", pfn=None, app_id="App"):
+def extract_cloud_saves(
+    scid: str,
+    output_dir: str | Path = "ExtractedSaves",
+    pfn: str | None = None,
+    app_id: str = "App",
+) -> bool:
     """Runs the compiled WinRT bridge to download cloud saves for the given SCID."""
     out_path = Path(output_dir)
     out_path.mkdir(parents=True, exist_ok=True)
@@ -300,7 +312,7 @@ def extract_cloud_saves(scid, output_dir="ExtractedSaves", pfn=None, app_id="App
     # Save config.json for the binary
     config_data = {
         "scid": scid,
-        "output": str(out_path.resolve())
+        "output": str(out_path.resolve()),
     }
     with open(WORKSPACE_DIR / "config.json", "w") as f:
         json.dump(config_data, f, indent=2)
@@ -318,13 +330,13 @@ def extract_cloud_saves(scid, output_dir="ExtractedSaves", pfn=None, app_id="App
     if log_file.exists():
         try:
             log_file.unlink()
-        except Exception:
+        except OSError:
             pass
 
     # Launch packaged app if PFN provided, otherwise direct exe
     if pfn and app_id:
         launch_cmd = f'powershell -NoProfile -Command "Start-Process \'shell:AppsFolder\\{pfn}!{app_id}\'"'
-        subprocess.run(launch_cmd, shell=True)
+        subprocess.run(launch_cmd, shell=True, check=False)
     else:
         run_cmd = f'"{exe_path}" --scid "{scid}" --out "{out_path.resolve()}"'
         subprocess.Popen(run_cmd, shell=True)
@@ -364,7 +376,7 @@ def extract_cloud_saves(scid, output_dir="ExtractedSaves", pfn=None, app_id="App
     log(f"[+] Files extracted to: {out_path.resolve()}", "green")
     return True
 
-def run_interactive_wizard():
+def run_interactive_wizard() -> None:
     """Guided wizard for end-to-end cloud save extraction."""
     log("=====================================================", "cyan")
     log(" Universal Xbox Cloud Save Recovery Wizard", "bold")
@@ -418,20 +430,20 @@ def run_interactive_wizard():
 
     if not store_info:
         # Default identity derived from Title Name / Title ID
-        clean_name = re.sub(r'[^a-zA-Z0-9]', '', title_name)
+        clean_name = re.sub(r"[^a-zA-Z0-9]", "", title_name)
         identity = clean_name if clean_name else f"Title{tid}"
         store_info = {
             "identityName": identity,
             "packageFamilyName": f"{identity}_8wekyb3d8bbwe",
             "applicationId": "App",
-            "scid": scid
+            "scid": scid,
         }
 
     # Setup package manifest
     generate_manifest_and_register(
         identity_name=store_info["identityName"],
         pfn=store_info["packageFamilyName"],
-        app_id=store_info["applicationId"]
+        app_id=store_info["applicationId"],
     )
 
     # Extract
@@ -440,10 +452,10 @@ def run_interactive_wizard():
         scid=scid,
         output_dir=str(out_dir),
         pfn=store_info.get("packageFamilyName"),
-        app_id=store_info.get("applicationId", "App")
+        app_id=store_info.get("applicationId", "App"),
     )
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(description="Universal Xbox Cloud Save Recovery CLI")
     subparsers = parser.add_subparsers(dest="command")
 
@@ -486,7 +498,7 @@ def main():
                 tid = str(t.get("titleId", ""))
                 scid = t.get("serviceConfigId", "")
                 print(f"{name:<45} {tid:<12} {scid:<40}")
-            log(f"\n[+] Saved full history to history.json", "green")
+            log("\n[+] Saved full history to history.json", "green")
 
     elif args.command == "lookup":
         lookup_store_product(args.product)
@@ -502,3 +514,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

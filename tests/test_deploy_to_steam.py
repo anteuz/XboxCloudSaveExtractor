@@ -1,12 +1,8 @@
-import os
 import sys
-import shutil
 import zipfile
-from pathlib import Path
-import pytest
-from unittest.mock import patch
 
 import deploy_to_steam
+
 
 def test_deploy_saves_nonexistent_src(tmp_path, capsys):
     nonexistent = tmp_path / 'does_not_exist'

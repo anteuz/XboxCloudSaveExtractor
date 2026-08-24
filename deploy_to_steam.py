@@ -4,14 +4,18 @@ Universal Save Game Deployment Tool
 Copies extracted save files into target game save directories (e.g. Steam, GOG, Epic) with automatic zip backup.
 """
 
+import argparse
 import os
-import sys
 import shutil
 import zipfile
-import argparse
 from pathlib import Path
 
-def deploy_saves(src_dir, target_dir, backup_zip=None):
+
+def deploy_saves(
+    src_dir: str | Path,
+    target_dir: str | Path,
+    backup_zip: str | Path | None = None,
+) -> bool:
     src_path = Path(src_dir).resolve()
     target_path = Path(target_dir).resolve()
 
@@ -25,19 +29,19 @@ def deploy_saves(src_dir, target_dir, backup_zip=None):
 
     # 1. Create a complete Zip Backup
     if backup_zip is None:
-        backup_zip = src_path.parent / f"{src_path.name}_Backup.zip"
+        backup_path = src_path.parent / f"{src_path.name}_Backup.zip"
     else:
-        backup_zip = Path(backup_zip)
+        backup_path = Path(backup_zip)
 
-    backup_zip.parent.mkdir(parents=True, exist_ok=True)
-    print(f"[*] Creating ZIP backup at: {backup_zip}...")
-    with zipfile.ZipFile(backup_zip, "w", zipfile.ZIP_DEFLATED) as zf:
-        for root, dirs, files in os.walk(src_path):
+    backup_path.parent.mkdir(parents=True, exist_ok=True)
+    print(f"[*] Creating ZIP backup at: {backup_path}...")
+    with zipfile.ZipFile(backup_path, "w", zipfile.ZIP_DEFLATED) as zf:
+        for root, _, files in os.walk(src_path):
             for file in files:
                 abs_p = Path(root) / file
                 rel_p = abs_p.relative_to(src_path)
                 zf.write(abs_p, rel_p)
-    print(f"[+] Backup ZIP created successfully ({backup_zip.stat().st_size} bytes).\n")
+    print(f"[+] Backup ZIP created successfully ({backup_path.stat().st_size} bytes).\n")
 
     # 2. Deploy to target save directory
     print(f"[*] Target Save Directory: {target_path}")
@@ -45,7 +49,7 @@ def deploy_saves(src_dir, target_dir, backup_zip=None):
 
     # Copy files
     copied_count = 0
-    for root, dirs, files in os.walk(src_path):
+    for root, _, files in os.walk(src_path):
         for file in files:
             src_file = Path(root) / file
             rel_path = src_file.relative_to(src_path)
@@ -59,7 +63,7 @@ def deploy_saves(src_dir, target_dir, backup_zip=None):
     print(f"\n[*** SUCCESS ***] Deployed {copied_count} save file(s) directly to {target_path}!")
     return True
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(description="Deploy extracted saves to Steam/GOG/Epic directory")
     parser.add_argument("--source", "-s", default="ExtractedSaves", help="Directory containing extracted save files")
     parser.add_argument("--target", "-t", help="Target save directory (e.g. %LOCALAPPDATA%\\<Game>\\Saved\\SaveGames or Steam userdata path)")
@@ -85,3 +89,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

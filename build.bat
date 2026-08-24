@@ -26,10 +26,10 @@ if not exist "%VS_DEV_CMD%" (
 )
 
 echo [*] Initializing Visual Studio environment...
-call "%VS_DEV_CMD%" -arch=amd64
+call "%VS_DEV_CMD%" -arch=amd64 >nul 2>&1
 
 echo [*] Compiling generic_extractor.cpp with C++/WinRT...
-cl /std:c++20 /EHsc /W4 /O2 generic_extractor.cpp /link windowsapp.lib /out:xbox_save_extractor.exe
+cl /nologo /std:c++20 /EHsc /W4 /O2 generic_extractor.cpp /link windowsapp.lib /out:xbox_save_extractor.exe
 
 if %errorlevel% equ 0 (
     echo.
@@ -40,4 +40,4 @@ if %errorlevel% equ 0 (
     echo [-] Compilation failed with error code %errorlevel%.
     echo.
 )
-pause
+
