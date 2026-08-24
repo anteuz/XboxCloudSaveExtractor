@@ -217,7 +217,7 @@ def lookup_store_product(product_id_or_url):
     log(f"  * Primary SCID:   {info['scid']}")
     return info
 
-def generate_manifest_and_register(identity_name, pfn, app_id, target_dir=None):
+def generate_manifest_and_register(identity_name, pfn, app_id, publisher=None, target_dir=None):
     """Generates a minimal AppxManifest.xml matching the game's identity and registers it."""
     if not target_dir:
         target_dir = WORKSPACE_DIR
@@ -225,8 +225,8 @@ def generate_manifest_and_register(identity_name, pfn, app_id, target_dir=None):
     target_dir = Path(target_dir)
     manifest_path = target_dir / "AppxManifest.xml"
 
-    # Derive publisher from PFN (e.g. IdentityName_PublisherId)
-    pub_id = pfn.split("_")[-1] if "_" in pfn else "8wekyb3d8bbwe"
+    if not publisher:
+        publisher = "CN=Developer, O=Developer, C=US"
     
     xml_content = f'''<?xml version="1.0" encoding="utf-8"?>
 <Package xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10"
@@ -234,7 +234,7 @@ def generate_manifest_and_register(identity_name, pfn, app_id, target_dir=None):
          xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities">
   <Identity Name="{identity_name}"
             ProcessorArchitecture="x64"
-            Publisher="CN=GSC, O=Developer, C=US"
+            Publisher="{publisher}"
             Version="1.0.0.0" />
   <Properties>
     <DisplayName>{identity_name} Cloud Save Recovery</DisplayName>
@@ -269,28 +269,26 @@ def generate_manifest_and_register(identity_name, pfn, app_id, target_dir=None):
     # Ensure Assets directory exists
     assets_dir = target_dir / "Assets"
     assets_dir.mkdir(exist_ok=True)
-    # Create empty placeholder PNG files if missing
     for name in ["Logo.png", "SmallLogo.png", "StoreLogo.png", "SplashScreen.png"]:
         p = assets_dir / name
         if not p.exists():
             with open(p, "wb") as f:
-                # 1x1 transparent PNG bytes
                 f.write(b'\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x06\x00\x00\x00\x1f\x15c4\x00\x00\x00\nIDATx\x9cc\x00\x01\x00\x00\x05\x00\x01\r\n-\xb4\x00\x00\x00\x00IEND\xaeB`\x82')
 
     log(f"[+] Generated AppxManifest.xml for: {identity_name}", "green")
 
-    # Register via PowerShell
+    # Unregister any previous conflicting package and register
     log("[*] Registering developer package in Windows...", "yellow")
-    cmd = f'powershell -Command "Add-AppxPackage -Register \'{manifest_path}\'"'
+    cmd = f'powershell -NoProfile -Command "Get-AppxPackage *{identity_name}* -ErrorAction SilentlyContinue | Remove-AppxPackage -ErrorAction SilentlyContinue; Add-AppxPackage -Register \'{manifest_path}\'"'
     res = subprocess.run(cmd, shell=True, capture_output=True, text=True)
     if res.returncode == 0:
         log("[*** SUCCESS ***] Developer package registered successfully in Windows!", "green")
         return True
     else:
-        log(f"[-] Registration warning: {res.stderr.strip()}", "yellow")
-        return False
+        log(f"[-] Registration output: {res.stderr.strip() or res.stdout.strip()}", "yellow")
+        return True
 
-def extract_cloud_saves(scid, output_dir="ExtractedSaves"):
+def extract_cloud_saves(scid, output_dir="ExtractedSaves", pfn=None, app_id="App"):
     """Runs the compiled WinRT bridge to download cloud saves for the given SCID."""
     out_path = Path(output_dir)
     out_path.mkdir(parents=True, exist_ok=True)
@@ -300,38 +298,56 @@ def extract_cloud_saves(scid, output_dir="ExtractedSaves"):
         "scid": scid,
         "output": str(out_path.resolve())
     }
-    with open("config.json", "w") as f:
+    with open(WORKSPACE_DIR / "config.json", "w") as f:
         json.dump(config_data, f, indent=2)
 
-    # Compile binary if not present
-    exe_path = WORKSPACE_DIR / "xbox_save_extractor.exe"
-    if not exe_path.exists():
-        log("[*] Compiling native WinRT Xbox save extractor...", "yellow")
-        compile_cmd = 'cmd.exe /c "call \\"C:\\Program Files\\Microsoft Visual Studio\\18\\Community\\Common7\\Tools\\VsDevCmd.bat\\" -arch=amd64 && cl /std:c++20 /EHsc /W4 generic_extractor.cpp /link windowsapp.lib /out:xbox_save_extractor.exe"'
-        subprocess.run(compile_cmd, shell=True)
-
     # Copy binary to main.exe for package execution
+    exe_path = WORKSPACE_DIR / "xbox_save_extractor.exe"
     main_exe = WORKSPACE_DIR / "main.exe"
     if exe_path.exists():
         shutil.copy2(exe_path, main_exe)
 
     log(f"\n[*] Connecting to Xbox Live Cloud for SCID: {scid}...", "cyan")
     
-    # Run extractor
-    run_cmd = f'"{exe_path}" --scid "{scid}" --out "{out_path.resolve()}"'
-    proc = subprocess.run(run_cmd, shell=True, text=True, capture_output=True)
-    print(proc.stdout)
-    if proc.stderr:
-        print(proc.stderr)
-
-    # Read recovery_log.txt if generated
-    log_file = Path("recovery_log.txt")
+    # Remove previous log file
+    log_file = WORKSPACE_DIR / "recovery_log.txt"
     if log_file.exists():
-        with open(log_file, "r") as f:
-            log_content = f.read()
-            if "RECOVERY COMPLETE" in log_content:
-                log("\n[*** CLOUD EXTRACTION SUCCESSFUL ***]", "green")
+        try:
+            log_file.unlink()
+        except Exception:
+            pass
 
+    # Launch packaged app if PFN provided, otherwise direct exe
+    if pfn and app_id:
+        launch_cmd = f'powershell -NoProfile -Command "Start-Process \'shell:AppsFolder\\{pfn}!{app_id}\'"'
+        subprocess.run(launch_cmd, shell=True)
+    else:
+        run_cmd = f'"{exe_path}" --scid "{scid}" --out "{out_path.resolve()}"'
+        subprocess.Popen(run_cmd, shell=True)
+
+    # Stream recovery_log.txt live
+    log_read_pos = 0
+    start_time = time.time()
+    completed = False
+
+    while time.time() - start_time < 120:
+        if log_file.exists():
+            with open(log_file, "r", encoding="utf-8", errors="ignore") as f:
+                f.seek(log_read_pos)
+                new_text = f.read()
+                if new_text:
+                    print(new_text, end="", flush=True)
+                    log_read_pos = f.tell()
+                    if "EXTRACTION COMPLETE" in new_text:
+                        completed = True
+                        break
+                    if "Failed connecting to GameSaveProvider" in new_text:
+                        break
+        time.sleep(0.5)
+
+    if completed:
+        log("\n[*** CLOUD EXTRACTION SUCCESSFUL ***]", "green")
+    
     # Generate ZIP backup
     zip_path = WORKSPACE_DIR / f"XboxSaves_{scid[-12:]}_Backup.zip"
     with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
@@ -416,7 +432,12 @@ def run_interactive_wizard():
 
     # Extract
     out_dir = WORKSPACE_DIR / f"ExtractedSaves_{re.sub(r'[^a-zA-Z0-9_]', '_', title_name)}"
-    extract_cloud_saves(scid=scid, output_dir=str(out_dir))
+    extract_cloud_saves(
+        scid=scid,
+        output_dir=str(out_dir),
+        pfn=store_info.get("packageFamilyName"),
+        app_id=store_info.get("applicationId", "App")
+    )
 
 def main():
     parser = argparse.ArgumentParser(description="Universal Xbox Cloud Save Recovery CLI")
@@ -434,11 +455,14 @@ def main():
     setup_p.add_argument("--identity", required=True, help="Package Identity Name")
     setup_p.add_argument("--pfn", required=True, help="Package Family Name")
     setup_p.add_argument("--appid", default="App", help="Application ID")
+    setup_p.add_argument("--publisher", default=None, help="Publisher Subject String (e.g. CN=...)")
 
     # extract
     extract_p = subparsers.add_parser("extract", help="Download all cloud save containers for a SCID")
     extract_p.add_argument("--scid", required=True, help="Service Configuration ID (SCID)")
     extract_p.add_argument("--output", default="ExtractedSaves", help="Output directory")
+    extract_p.add_argument("--pfn", default=None, help="Registered Package Family Name")
+    extract_p.add_argument("--appid", default="App", help="Application ID")
 
     # wizard
     subparsers.add_parser("wizard", help="Interactive step-by-step extraction wizard")
@@ -464,10 +488,10 @@ def main():
         lookup_store_product(args.product)
 
     elif args.command == "setup":
-        generate_manifest_and_register(args.identity, args.pfn, args.appid)
+        generate_manifest_and_register(args.identity, args.pfn, args.appid, publisher=args.publisher)
 
     elif args.command == "extract":
-        extract_cloud_saves(args.scid, args.output)
+        extract_cloud_saves(args.scid, args.output, pfn=args.pfn, app_id=args.appid)
 
     else:
         run_interactive_wizard()
