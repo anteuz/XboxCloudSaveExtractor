@@ -33,14 +33,43 @@ python xbox_save_tool.py wizard
 python xbox_save_tool.py discover
 
 # 3. Look up Store metadata (PFN, App ID, SCID) from a Store URL or Product ID
-python xbox_save_tool.py lookup 9N3D6V4N58JR
+python xbox_save_tool.py lookup <PRODUCT_ID_OR_STORE_URL>
 
 # 4. Register package identity in Windows
-python xbox_save_tool.py setup --identity "GSCGameWorld.S.T.A.L.K.E.R.2HeartofChernobyl" --pfn "GSCGameWorld.S.T.A.L.K.E.R.2HeartofChernobyl_6fr1t1rwfarwt" --appid "Stalker2RedirectionApp"
+python xbox_save_tool.py setup --identity "<PackageIdentityName>" --pfn "<PackageFamilyName>" --appid "<ApplicationId>"
 
 # 5. Extract all cloud saves for a SCID
-python xbox_save_tool.py extract --scid "00000000-0000-0000-0000-00007782504a" --output "./ExtractedSaves"
+python xbox_save_tool.py extract --scid "<SCID>" --output "./ExtractedSaves"
 ```
+
+---
+
+## 🔍 How to Find Your Game's SCID, Product ID, and PFN
+
+### 1. Finding Your Game's SCID (Service Configuration ID)
+* **Via Account Discovery (Automated)**:
+  Run:
+  ```bash
+  python xbox_save_tool.py discover
+  ```
+  Follow the on-screen browser link to sign in. The tool fetches your account's achievement/title history and displays a table mapping every game you have played to its exact Title ID and Primary SCID (`serviceConfigId` UUID format: `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx`).
+
+### 2. Finding the Microsoft Store Product ID
+* Open the game's page on the [Xbox Games Store](https://www.xbox.com/games/store) in your browser.
+* In the URL `https://www.xbox.com/en-US/games/store/<game-title>/<PRODUCT_ID>`, copy the 12-character alphanumeric code at the end (e.g. `9XXXXXXXXXXX`).
+
+### 3. Resolving PFN, Identity Name, and Application ID
+* Run:
+  ```bash
+  python xbox_save_tool.py lookup <PRODUCT_ID_OR_URL>
+  ```
+* The tool queries Microsoft's Display Catalog API and outputs the exact `PackageFamilyName`, `PackageIdentityName`, `ApplicationId`, and `Primary SCID`.
+
+### 4. For Installed PC Games
+* You can also inspect installed AppX packages via PowerShell:
+  ```powershell
+  Get-AppxPackage *<GameKeyword>* | Select-Object Name, PackageFamilyName
+  ```
 
 ---
 
@@ -70,9 +99,9 @@ GET https://displaycatalog.mp.microsoft.com/v7.0/products/{productId}?market=US&
 ```
 
 From the response JSON, extract:
-* `Properties.PackageFamilyName` (e.g. `GSCGameWorld.S.T.A.L.K.E.R.2HeartofChernobyl_6fr1t1rwfarwt`)
-* `Properties.PackageIdentityName` (e.g. `GSCGameWorld.S.T.A.L.K.E.R.2HeartofChernobyl`)
-* `Properties.ApplicationId` (e.g. `Stalker2RedirectionApp` or `App`)
+* `Properties.PackageFamilyName` (e.g. `<Publisher>.<GameTitle>_<PublisherId>`)
+* `Properties.PackageIdentityName`
+* `Properties.ApplicationId` (defaults to `App`)
 * `Properties.PrimaryServiceConfigId` (SCID)
 
 ---
@@ -141,7 +170,7 @@ int main() {
     auto users = User::FindAllAsync().get();
     User currentUser = users.GetAt(0);
     
-    hstring scid = L"00000000-0000-0000-0000-00007782504a";
+    hstring scid = L"<TARGET_SCID_GUID>";
     auto result = GameSaveProvider::GetForUserAsync(currentUser, scid).get();
     if (result.Status() == GameSaveErrorStatus::Ok) {
         GameSaveProvider provider = result.Value();
@@ -172,7 +201,7 @@ xbox_save_extractor.exe --scid "<SCID>" --out "./ExtractedSaves"
 ### Step 5: Transfer to Steam / GOG / Epic Save Locations
 Common PC save paths for extracted Unreal Engine & standard titles:
 
-* **Unreal Engine 4/5 Titles (e.g. S.T.A.L.K.E.R. 2)**:
+* **Unreal Engine 4 / 5 Titles**:
   `%LOCALAPPDATA%\<GameName>\Saved\SaveGames\`
 * **Unity Titles**:
   `%USERPROFILE%\AppData\LocalLow\<Developer>\<GameName>\`

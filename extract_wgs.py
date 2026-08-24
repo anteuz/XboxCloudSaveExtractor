@@ -91,31 +91,85 @@ def extract_wgs_folder(wgs_dir, output_dir):
 
     print(f"\n[+] Extracted {extracted_count} save file(s) ({total_bytes} bytes) to: {output_dir}")
 
-def find_stalker_wgs_folders():
+def find_all_wgs_packages():
+    """Finds all installed/stored packages containing local WGS save data."""
     local_appdata = os.environ.get("LOCALAPPDATA", "")
     packages_dir = os.path.join(local_appdata, "Packages")
     matches = []
     
     if os.path.exists(packages_dir):
         for pkg in os.listdir(packages_dir):
-            if "S.T.A.L.K.E.R" in pkg or "Chernobyl" in pkg or "GSCGameWorld" in pkg:
-                wgs_path = os.path.join(packages_dir, pkg, "SystemAppData", "wgs")
-                if os.path.exists(wgs_path):
-                    matches.append(wgs_path)
+            wgs_path = os.path.join(packages_dir, pkg, "SystemAppData", "wgs")
+            if os.path.exists(wgs_path):
+                # Count containers inside
+                subdirs = [d for d in os.listdir(wgs_path) if os.path.isdir(os.path.join(wgs_path, d))]
+                matches.append({
+                    "packageName": pkg,
+                    "wgsPath": wgs_path,
+                    "containerCount": len(subdirs)
+                })
                     
     return matches
 
-if __name__ == "__main__":
+def main():
+    import argparse
+    parser = argparse.ArgumentParser(description="Universal Windows Game Save (WGS) Local Extractor")
+    parser.add_argument("--package", "-p", help="Filter by package name keyword")
+    parser.add_argument("--wgs-dir", "-w", help="Direct path to SystemAppData/wgs directory")
+    parser.add_argument("--output", "-o", default="ExtractedSaves_WGS", help="Output directory")
+    parser.add_argument("--list", "-l", action="store_true", help="List all local packages with WGS save data")
+    args = parser.parse_args()
+
     print("=====================================================")
-    print(" S.T.A.L.K.E.R. 2 - Local WGS Save File Extractor")
+    print(" Universal Windows Game Save (WGS) Local Extractor")
     print("=====================================================\n")
-    
-    found = find_stalker_wgs_folders()
-    out_dir = os.path.join(os.getcwd(), "ExtractedSaves_WGS")
-    
-    if found:
-        for wgs in found:
-            extract_wgs_folder(wgs, out_dir)
-    else:
+
+    if args.wgs_dir:
+        extract_wgs_folder(args.wgs_dir, args.output)
+        return
+
+    all_pkgs = find_all_wgs_packages()
+
+    if args.list:
+        print(f"Found {len(all_pkgs)} package(s) with local WGS save data:\n")
+        print(f"{'#':<4} {'Package Name':<65} {'Containers':<10}")
+        print("-" * 80)
+        for i, pkg in enumerate(all_pkgs):
+            print(f"{i+1:<4} {pkg['packageName']:<65} {pkg['containerCount']:<10}")
+        return
+
+    if args.package:
+        filtered = [p for p in all_pkgs if args.package.lower() in p["packageName"].lower()]
+        if not filtered:
+            print(f"[-] No local packages found matching '{args.package}'.")
+            return
+        for pkg in filtered:
+            out = os.path.join(args.output, pkg["packageName"])
+            extract_wgs_folder(pkg["wgsPath"], out)
+        return
+
+    if not all_pkgs:
         print("[!] No local WGS save folders found in %LOCALAPPDATA%\\Packages.")
-        print("    If you downloaded saves using main.exe, check the ./ExtractedSaves folder!")
+        print("    If you want to extract directly from the cloud, use: python xbox_save_tool.py wizard")
+        return
+
+    print(f"Found {len(all_pkgs)} package(s) with local WGS save data:\n")
+    print(f"{'#':<4} {'Package Name':<65} {'Containers':<10}")
+    print("-" * 80)
+    for i, pkg in enumerate(all_pkgs):
+        print(f"{i+1:<4} {pkg['packageName']:<65} {pkg['containerCount']:<10}")
+
+    choice = input("\nEnter package # to extract (or 'all'): ").strip()
+    if choice.lower() == "all":
+        for pkg in all_pkgs:
+            out = os.path.join(args.output, pkg["packageName"])
+            extract_wgs_folder(pkg["wgsPath"], out)
+    elif choice.isdigit() and 1 <= int(choice) <= len(all_pkgs):
+        selected = all_pkgs[int(choice) - 1]
+        out = os.path.join(args.output, selected["packageName"])
+        extract_wgs_folder(selected["wgsPath"], out)
+    else:
+        print("[-] Invalid selection.")
+
+if __name__ == "__main__":
+    main()

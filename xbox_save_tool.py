@@ -372,7 +372,7 @@ def run_interactive_wizard():
     if len(titles) > 50:
         print(f"... and {len(titles) - 50} more games.")
 
-    choice = input("\nEnter game # or search query (e.g. 'stalker', 'forza', '1'): ").strip()
+    choice = input("\nEnter game # or search query (e.g. '1', or part of title name): ").strip()
     selected_title = None
 
     if choice.isdigit() and 1 <= int(choice) <= len(titles):
@@ -392,16 +392,17 @@ def run_interactive_wizard():
 
     # Store lookup if needed for PFN
     store_info = None
-    store_query = input(f"\nDo you have the Microsoft Store Product ID or URL for '{title_name}'? (press Enter to auto-search or skip): ").strip()
+    store_query = input(f"\nEnter Microsoft Store Product ID or URL for '{title_name}' (e.g. from xbox.com/games/store, or press Enter to auto-derive): ").strip()
     if store_query:
         store_info = lookup_store_product(store_query)
 
     if not store_info:
-        # Default identity from SCID and Title
+        # Default identity derived from Title Name / Title ID
         clean_name = re.sub(r'[^a-zA-Z0-9]', '', title_name)
+        identity = clean_name if clean_name else f"Title{tid}"
         store_info = {
-            "identityName": clean_name if clean_name else f"Title{tid}",
-            "packageFamilyName": f"{clean_name}_6fr1t1rwfarwt",
+            "identityName": identity,
+            "packageFamilyName": f"{identity}_8wekyb3d8bbwe",
             "applicationId": "App",
             "scid": scid
         }
@@ -422,11 +423,11 @@ def main():
     subparsers = parser.add_subparsers(dest="command")
 
     # discover
-    subparsers.add_parser("discover", help="Authenticate and list all played games and SCIDs")
+    subparsers.add_parser("discover", help="Authenticate and list all played games and SCIDs from your account history")
     
     # lookup
-    lookup_p = subparsers.add_parser("lookup", help="Look up Microsoft Store catalog details (PFN, SCID, AppId)")
-    lookup_p.add_argument("product", help="Microsoft Store Product ID (e.g. 9N3D6V4N58JR) or URL")
+    lookup_p = subparsers.add_parser("lookup", help="Look up Microsoft Store catalog details (PFN, SCID, AppId) from a Product ID or Store URL")
+    lookup_p.add_argument("product", help="Microsoft Store 12-character Product ID (found in xbox.com store URL) or full URL")
 
     # setup
     setup_p = subparsers.add_parser("setup", help="Generate AppxManifest and register developer package")

@@ -55,16 +55,60 @@ The toolkit can also be scripted via standalone commands:
 python xbox_save_tool.py discover
 
 # 2. Look up Store metadata (PFN, App ID, SCID) from a Store URL or Product ID
-python xbox_save_tool.py lookup 9N3D6V4N58JR
+python xbox_save_tool.py lookup <PRODUCT_ID_OR_URL>
 
 # 3. Register package identity in Windows
-python xbox_save_tool.py setup --identity "GSCGameWorld.S.T.A.L.K.E.R.2HeartofChernobyl" \
-                              --pfn "GSCGameWorld.S.T.A.L.K.E.R.2HeartofChernobyl_6fr1t1rwfarwt" \
-                              --appid "Stalker2RedirectionApp"
+python xbox_save_tool.py setup --identity "<PackageIdentityName>" \
+                              --pfn "<PackageFamilyName>" \
+                              --appid "<ApplicationId>"
 
 # 4. Extract all cloud saves for a SCID
-python xbox_save_tool.py extract --scid "00000000-0000-0000-0000-00007782504a" --output "./ExtractedSaves"
+python xbox_save_tool.py extract --scid "<SCID>" --output "./ExtractedSaves"
+
+# 5. Extract locally cached Windows Game Save (WGS) folders (optional)
+python extract_wgs.py --list
+python extract_wgs.py --package "<GameKeyword>"
+
+# 6. Deploy extracted saves to target storefront with backup
+python deploy_to_steam.py --source "./ExtractedSaves" --target "%LOCALAPPDATA%\<GameName>\Saved\SaveGames"
 ```
+
+---
+
+## 🔍 How to Find Your Game's SCID, Product ID, and PFN
+
+If you prefer to run manual steps rather than the automated wizard, here is how you can find the required identifiers:
+
+### 1. Finding Your Game's SCID (Service Configuration ID)
+* **Via Account Discovery (Easiest)**:
+  Run:
+  ```bash
+  python xbox_save_tool.py discover
+  ```
+  Sign in with the Microsoft account you played the game on. The tool will scan your entire Xbox title history and print a clean table containing the **Title Name**, **Title ID**, and **SCID** (UUID format: `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx`) for every game you have ever played. Full results are also saved to `history.json`.
+
+### 2. Finding the Microsoft Store Product ID
+* Open your browser and navigate to the game's page on the [Xbox / Microsoft Store](https://www.xbox.com/games/store).
+* Look at the URL in your browser's address bar. It follows the pattern:
+  `https://www.xbox.com/en-US/games/store/<game-title>/<12-CHAR-PRODUCT-ID>`
+* The last 12 alphanumeric characters (e.g. `9XXXXXXXXXXX`) is the **Product ID**.
+
+### 3. Resolving Package Family Name (PFN) and Application ID
+* Pass either the 12-character Product ID or the full Store URL directly to the lookup command:
+  ```bash
+  python xbox_save_tool.py lookup <12-CHAR-PRODUCT-ID-OR-URL>
+  ```
+* The tool queries Microsoft's public Display Catalog API and outputs:
+  * **Package Family Name (PFN)** (e.g. `<Publisher>.<GameTitle>_<PublisherId>`)
+  * **Package Identity Name**
+  * **Application ID** (defaults to `App` if unspecified)
+  * **Primary SCID**
+
+### 4. Finding Local Package Information (For Installed Games)
+* If the game is currently or was previously installed on your PC, you can inspect installed AppX packages via PowerShell:
+  ```powershell
+  Get-AppxPackage *<Keyword>* | Select-Object Name, PackageFamilyName
+  ```
 
 ---
 
@@ -114,7 +158,7 @@ Once extracted, copy your saves into the appropriate storefront folder:
 
 | Engine / Platform | Typical Save Directory |
 | :--- | :--- |
-| **Unreal Engine 4/5 (e.g. S.T.A.L.K.E.R. 2)** | `%LOCALAPPDATA%\<GameName>\Saved\SaveGames\` |
+| **Unreal Engine 4 / 5 Games** | `%LOCALAPPDATA%\<GameName>\Saved\SaveGames\` |
 | **Unity Games** | `%USERPROFILE%\AppData\LocalLow\<Developer>\<GameName>\` |
 | **Windows Saved Games** | `%USERPROFILE%\Saved Games\<GameName>\` |
 | **Steam UserData** | `<SteamInstallDir>\userdata\<SteamID>\<AppID>\remote\` |
