@@ -39,13 +39,14 @@ jobs:
           mypy --strict deploy_to_steam.py extract_wgs.py xbox_save_tool.py
 
       - name: Compile and Run C++ Native Unit Tests
-        run: |
-          build_test_cpp.bat
+        shell: cmd
+        run: build_test_cpp.bat
 
       - name: Compile C++ Native Main Binary
-        run: |
-          build.bat
+        shell: cmd
+        run: build.bat
 
       - name: Run Pytest with 100% Coverage Enforcement
         run: |
           pytest
+
